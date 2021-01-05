@@ -1,5 +1,5 @@
 # source: https://api.digitransit.fi/routing/v1/routers/finland/index/graphql
-# timestamp: Sun Dec 08 2019 13:03:44 GMT+0100 (GMT+01:00)
+# timestamp: Tue Jan 05 2021 12:12:39 GMT+0600 (Bangladesh Standard Time)
 
 schema {
   query: QueryType
@@ -282,6 +282,12 @@ type BikeRentalStation implements Node & PlaceInterface {
 
   """If true, bikes can be returned to this station."""
   allowDropoff: Boolean
+
+  """If true, this is a free floating bike."""
+  isFloatingBike: Boolean
+
+  """If true, this is a car rental system station."""
+  isCarStation: Boolean
   networks: [String]
 
   """Longitude of the bike rental station (WGS 84)"""
@@ -776,6 +782,12 @@ type Leg {
   serviceDate: String
 
   """
+  Interlines with previous leg. This is true when the same vehicle is used for
+  the previous leg as for this leg and passenger can stay inside the vehicle.
+  """
+  interlineWithPreviousLeg: Boolean
+
+  """
   For transit legs, intermediate stops between the Place where the leg
   originates and the Place where the leg ends. For non-transit legs, null.
   """
@@ -1009,6 +1021,9 @@ type Place {
   """The stop related to the place."""
   stop: Stop
 
+  """For transit stops, the sequence number of the stop."""
+  stopSequence: Int
+
   """The bike rental station related to the place"""
   bikeRentalStation: BikeRentalStation
 
@@ -1143,8 +1158,14 @@ type QueryType {
     """Return stops with these ids"""
     ids: [String]
 
+    """List of feeds from which stops are returned. Defaults to all feeds"""
+    feeds: [String!]
+
     """Query stops by this name"""
     name: String
+
+    """Number of results to return when using `name` argument. Defaults to 10"""
+    maxResults: Int
   ): [Stop]
 
   """Get all stops within the specified bounding box"""
@@ -1264,8 +1285,14 @@ type QueryType {
     """Only return stations that match one of the ids in this list"""
     ids: [String]
 
+    """List of feeds from which stations are returned. Defaults to all feeds"""
+    feeds: [String!]
+
     """Query stations by name"""
     name: String
+
+    """Number of results to return when using `name` argument. Defaults to 10"""
+    maxResults: Int
   ): [Stop]
 
   """Get all routes"""
@@ -1404,13 +1431,26 @@ type QueryType {
 
     """Only return alerts with these causes"""
     cause: [AlertCauseType!]
+
+    """Only return alerts affecting these routes"""
+    route: [String!]
+
+    """Only return alerts affecting these stops"""
+    stop: [String!]
   ): [Alert]
 
   """Get the time range for which the API has data available"""
   serviceTimeRange: serviceTimeRange
 
   """Get all bike rental stations"""
-  bikeRentalStations: [BikeRentalStation]
+  bikeRentalStations(
+    """
+    Return bike rental stations with these ids.  
+     **Note:** if an id is invalid (or the bike rental station service is
+    unavailable) the returned list will contain `null` values.
+    """
+    ids: [String]
+  ): [BikeRentalStation]
 
   """
   Get a single bike rental station based on its ID, i.e. value of field `stationId`
@@ -1508,6 +1548,13 @@ type QueryType {
     drive-to-transit (park and ride or kiss and ride). Default value: 1800.
     """
     maxPreTransitTime: Int
+
+    """
+    The maximum slope, up or downhill, that can be used in wheelchair accessible
+    routing. Value is between 0 and 1, and calculated by dividing change of
+    elevation by change of distance. Default value: 0.0833333333333
+    """
+    maxSlope: Float
 
     """
     How expensive it is to drive a car when car&parking, increase this value to
@@ -2169,6 +2216,9 @@ type Stoptime {
   instead of `tripHeadsign` to display the headsign relevant to the user. 
   """
   headsign: String
+
+  """The sequence number of the stop"""
+  stopSequence: Int
 }
 
 """Stoptimes grouped by pattern"""
